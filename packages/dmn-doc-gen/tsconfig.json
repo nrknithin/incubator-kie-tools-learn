@@ -1,0 +1,22 @@
+{
+  "extends": "@kie-tools/tsconfig/tsconfig.esm.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "esModuleInterop": true,
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "declaration": true,
+    "emitDeclarationOnly": false
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "stories/**/*",
+    "**/*.test.ts",
+    "**/*.test.tsx"
+  ]
+}
