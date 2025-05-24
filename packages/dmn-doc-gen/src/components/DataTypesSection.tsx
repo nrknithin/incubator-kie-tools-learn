@@ -33,12 +33,14 @@ const createIdFromName = (name: string) => {
   return String(name).toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 }
 
-const renderItemDefinition = (itemDef: any /* ItemDefinition */, level: number = 0): JSX.Element => {
+const renderItemDefinition = (itemDef: any, level: number = 0): JSX.Element => {
   const styles: Record<string, React.CSSProperties> = {
     itemDef: {
       paddingLeft: `${level * 20}px`,
       marginBottom: "10px",
       borderLeft: level > 0 ? "2px solid #eee" : "none",
+      paddingTop: "5px",
+      paddingBottom: "5px",
     },
     itemName: {
       fontWeight: "bold",
@@ -50,26 +52,62 @@ const renderItemDefinition = (itemDef: any /* ItemDefinition */, level: number =
     },
     constraints: {
       marginTop: "5px",
+      marginLeft: "15px",
       fontStyle: "italic",
       color: "#555",
+      fontSize: "0.85em",
+    },
+    collectionMarker: {
+      fontWeight: 'normal',
+      fontStyle: 'italic',
+      color: '#666',
+      marginLeft: '5px',
+    },
+    description: {
+      marginLeft: "15px",
+      fontSize: "0.85em",
+      color: "#444",
+      fontStyle: "italic",
+      marginTop: '3px',
     }
   };
 
+  let typeDisplay = "Any";
+  if (itemDef.typeRef) {
+    // typeRef can be a string (e.g. "feel:string") or an object with __$$text (e.g. {__$$text:"tAddress"})
+    typeDisplay = typeof itemDef.typeRef === 'string' ? itemDef.typeRef : itemDef.typeRef.__$$text;
+  } else if (itemDef.itemComponent && itemDef.itemComponent.length > 0) {
+    typeDisplay = "Structure";
+  }
+
+  let constraintsDisplay = null;
+  // Check for kie:constraintType first, then the standard @constraintType
+  const constraintTypeAttribute = itemDef.typeConstraint?.["@_kie:constraintType"] || itemDef.typeConstraint?.["@_constraintType"];
+
+  if (itemDef.typeConstraint?.text?.__$$text) {
+    constraintsDisplay = `Constraints (${constraintTypeAttribute || 'default'}): ${itemDef.typeConstraint.text.__$$text}`;
+  } else if (itemDef.allowedValues?.text?.__$$text) { // Note: DMN spec uses allowedValues for enumerations.
+    constraintsDisplay = `Allowed Values: ${itemDef.allowedValues.text.__$$text}`;
+  }
+
+
   return (
     <div key={itemDef["@_id"]} style={styles.itemDef}>
-      <div style={styles.itemName}>{itemDef["@_name"]}</div>
-      <div style={styles.itemDetails}>
-        Type: {itemDef.typeRef?.__text || itemDef.typeRef || (itemDef.itemComponent ? "Structure" : "Any")}
-        {itemDef["@_isCollection"] && <span> (List)</span>}
+      <div style={styles.itemName}>
+        {itemDef["@_name"]}
+        {itemDef["@_isCollection"] ? <span style={styles.collectionMarker}>(List)</span> : ""}
       </div>
-      {itemDef.allowedValues && (
-        <div style={styles.constraints}>
-          Allowed Values: {itemDef.allowedValues.text?.__text || itemDef.allowedValues.text}
+      <div style={styles.itemDetails}>
+        Type: {typeDisplay}
+      </div>
+      {itemDef.description?.__$$text && ( // Accessing description correctly
+        <div style={styles.description}>
+          Description: {itemDef.description.__$$text}
         </div>
       )}
-      {itemDef.typeConstraint && (
-         <div style={styles.constraints}>
-          Constraints: {itemDef.typeConstraint.text?.__text || itemDef.typeConstraint.text}
+      {constraintsDisplay && (
+        <div style={styles.constraints}>
+          {constraintsDisplay}
         </div>
       )}
       {/* Render nested components if it's a structure */}
@@ -99,7 +137,12 @@ export const DataTypesSection: React.FC<DataTypesSectionProps> = ({ definition }
   const modelName = definition?.definitions?.["@_name"] || "Unnamed Model";
   // itemDefinition is an array under definitions
   const itemDefinitions = definition?.definitions?.itemDefinition || [];
-  const customDataTypes = itemDefinitions.filter((itemDef: any) => !itemDef.typeRef?.__text?.startsWith("feel:"));
+  
+  // Filter out FEEL built-in types and ensure typeRef is accessed correctly
+  const customDataTypes = itemDefinitions.filter((itemDef: any) => {
+    const typeRefText = typeof itemDef.typeRef === 'string' ? itemDef.typeRef : itemDef.typeRef?.__$$text;
+    return !typeRefText?.startsWith("feel:");
+  });
 
 
   return (

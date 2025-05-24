@@ -81,4 +81,4 @@ async function downloadMyDmn(dmnModel: any /* DmnLatestModel */) {
 }
 ```
 
-**Note:** The actual rendering of DMN diagrams and boxed expressions within the generated PDF and preview component relies on `@kie-tools/dmn-editor` and `@kie-tools/boxed-expression-component`. The PDF generation logic is currently a placeholder and will be fully implemented to leverage these components.
+**Note:** The actual rendering of DMN diagrams and boxed expressions within the generated PDF and preview component relies on `@kie-tools/dmn-editor-standalone` and `@kie-tools/boxed-expression-component`. The PDF generation logic is currently a placeholder and will be fully implemented to leverage these components.

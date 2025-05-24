@@ -34,8 +34,133 @@ const createIdFromName = (name: string) => {
   return String(name).toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 }
 
+const renderDrgElement = (el: any, allDrgElements: any[], dataTypes: any[]) => {
+  const styles: Record<string, React.CSSProperties> = { // Moved styles inside for access if needed, or keep outside if static
+    elementListItem: {
+      marginBottom: "1.5em",
+      padding: "10px",
+      border: "1px solid #f0f0f0",
+    },
+    elementName: {
+      fontSize: "1.2em",
+      fontWeight: "bold",
+    },
+    elementDetails: {
+      marginLeft: "20px",
+      fontSize: "0.9em",
+      color: "#333",
+    },
+    elementSubDetails: { // Added style
+      marginLeft: "25px",
+      fontSize: "0.85em",
+      color: "#444",
+      marginTop: "5px",
+    },
+    boxedExpressionContainer: {
+      marginTop: "10px",
+      border: "1px solid #ddd",
+      minHeight: "150px",
+      background: "#f9f9f9",
+      padding: "10px",
+    },
+    placeholder: {
+      padding: "10px",
+      color: "#888",
+      fontStyle: "italic",
+    },
+    requirementList: {
+      listStyleType: "disc",
+      paddingLeft: "20px",
+      margin: "5px 0",
+    }
+  };
+  
+  const getElementNameById = (id: string) => {
+    if (!id) return "Invalid ID";
+    const found = allDrgElements.find(e => e["@_id"] === id.replace("#", ""));
+    return found ? found["@_name"] : id;
+  };
+
+  return (
+    <div key={el["@_id"]} style={styles.elementListItem}>
+      <div style={styles.elementName}>{el["@_name"] || "Unnamed Element"}</div>
+      <div style={styles.elementDetails}>
+        ID: {el["@_id"]} <br />
+        Type: {el.variable?.["@_typeRef"] || "N/A"}
+      </div>
+
+      {/* Display Information Requirements */}
+      {el.informationRequirement && el.informationRequirement.length > 0 && (
+        <div style={styles.elementSubDetails}>
+          <strong>Requires:</strong>
+          <ul style={styles.requirementList}>
+            {el.informationRequirement.map((req: any, idx: number) => (
+              <li key={req["@_id"] || idx}>
+                {req.requiredInput && `Input: ${getElementNameById(req.requiredInput["@_href"])}`}
+                {req.requiredDecision && `Decision: ${getElementNameById(req.requiredDecision["@_href"])}`}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Display Knowledge Requirements for Decisions and BKMs */}
+      {el.knowledgeRequirement && el.knowledgeRequirement.length > 0 && (
+        <div style={styles.elementSubDetails}>
+          <strong>Knowledge Requires:</strong>
+          <ul style={styles.requirementList}>
+            {el.knowledgeRequirement.map((req: any, idx: number) => (
+              <li key={req["@_id"] || idx}>
+                {req.requiredKnowledge && `BKM: ${getElementNameById(req.requiredKnowledge["@_href"])}`}
+                {/* Add other types like requiredInput / requiredDecision if applicable */}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Expression for Decisions */}
+      {el.__$$element === "decision" && el.expression && (
+        <div style={styles.boxedExpressionContainer}>
+          <strong>Expression ({el.expression.__$$element}):</strong>
+          <BoxedExpressionComponent
+            expressionDefinition={el.expression}
+            logicType={el.expression.__$$element}
+            dataTypes={dataTypes}
+            isReadOnly={true}
+          />
+        </div>
+      )}
+      {el.__$$element === "decision" && !el.expression && (
+         <p style={styles.placeholder}><i>(No expression defined for this decision)</i></p>
+      )}
+
+      {/* Encapsulated Logic for BKMs */}
+      {el.__$$element === "businessKnowledgeModel" && el.encapsulatedLogic && (
+        <div style={styles.boxedExpressionContainer}>
+          <strong>Encapsulated Logic ({el.encapsulatedLogic.__$$element || "N/A"}):</strong>
+          {typeof el.encapsulatedLogic.text?.__text === 'string' ? (
+            <pre>{el.encapsulatedLogic.text.__text}</pre>
+          ) : (
+            <BoxedExpressionComponent
+              expressionDefinition={el.encapsulatedLogic}
+              logicType={el.encapsulatedLogic.__$$element}
+              dataTypes={dataTypes}
+              isReadOnly={true}
+            />
+          )}
+        </div>
+      )}
+      {el.__$$element === "businessKnowledgeModel" && !el.encapsulatedLogic && (
+         <p style={styles.placeholder}><i>(No encapsulated logic defined for this BKM)</i></p>
+      )}
+    </div>
+  );
+};
+
+
 export const DrgElementsSection: React.FC<DrgElementsSectionProps> = ({ definition }) => {
-  const styles: Record<string, React.CSSProperties> = {
+  const styles: Record<string, React.CSSProperties> = { // Styles for the main component
     drgElementsSection: {
       padding: "20px",
       borderBottom: "1px solid #eee",
@@ -53,69 +178,16 @@ export const DrgElementsSection: React.FC<DrgElementsSectionProps> = ({ definiti
       fontWeight: "bold",
       marginTop: "1.5em",
       marginBottom: "1em",
-    },
-    elementListItem: {
-      marginBottom: "1.5em",
-      padding: "10px",
-      border: "1px solid #f0f0f0",
-    },
-    elementName: {
-      fontSize: "1.2em",
-      fontWeight: "bold",
-    },
-    elementDetails: {
-      marginLeft: "20px",
-      fontSize: "0.9em",
-      color: "#333",
-    },
-    boxedExpressionContainer: {
-      marginTop: "10px",
-      border: "1px solid #ddd",
-      minHeight: "150px", // Ensure space for the expression
-      background: "#f9f9f9",
-    },
-    placeholder: {
-      padding: "10px",
-      color: "#888",
-      fontStyle: "italic",
     }
   };
 
   const modelName = definition?.definitions?.["@_name"] || "Unnamed Model";
   const drgElements = definition?.definitions?.drgElement || [];
-  const dataTypes = definition?.definitions?.itemDefinition || []; // Needed for BoxedExpressionComponent
+  const dataTypes = definition?.definitions?.itemDefinition || [];
 
   const inputs = drgElements.filter((el: any) => el.__$$element === "inputData");
   const decisions = drgElements.filter((el: any) => el.__$$element === "decision");
   const bkms = drgElements.filter((el: any) => el.__$$element === "businessKnowledgeModel");
-
-  const renderDrgElement = (el: any, typeLabel: string) => (
-    <div key={el["@_id"]} style={styles.elementListItem}>
-      <div style={styles.elementName}>{el["@_name"] || "Unnamed Element"}</div>
-      <div style={styles.elementDetails}>
-        ID: {el["@_id"]} <br />
-        Type: {el.variable?.["@_typeRef"] || "N/A"} <br />
-        {/* Constraints might be part of itemDefinition, needing lookup */}
-        {/* Constraints: TODO */}
-      </div>
-      {el.__$$element === "decision" && el.expression && (
-        <div style={styles.boxedExpressionContainer}>
-          <BoxedExpressionComponent
-            expressionDefinition={el.expression}
-            logicType={el.expression.__$$element} // e.g., "literalExpression", "decisionTable"
-            dataTypes={dataTypes}
-            isReadOnly={true}
-            // PMML params might be needed if expression is a PMML model
-            // pmmlParams={{ document: "doc", models: [] }}
-          />
-           <p style={styles.placeholder}><i>(Boxed Expression for "{el["@_name"]}")</i></p>
-        </div>
-      )}
-      {el.__$$element === "decision" && !el.expression && (
-         <p style={styles.placeholder}><i>(No expression defined for this decision)</i></p>
-      )}
-    </div>
-  );
 
   return (
     <div style={styles.drgElementsSection} data-testid="drg-elements-section">
@@ -126,21 +198,21 @@ export const DrgElementsSection: React.FC<DrgElementsSectionProps> = ({ definiti
       {inputs.length > 0 && (
         <>
           <h3 style={styles.elementTypeTitle} id={`inputs-${createIdFromName(modelName)}`}>Inputs</h3>
-          {inputs.map((el: any) => renderDrgElement(el, "Input"))}
+          {inputs.map((el: any) => renderDrgElement(el, drgElements, dataTypes))}
         </>
       )}
 
       {decisions.length > 0 && (
         <>
           <h3 style={styles.elementTypeTitle} id={`decisions-${createIdFromName(modelName)}`}>Decisions</h3>
-          {decisions.map((el: any) => renderDrgElement(el, "Decision"))}
+          {decisions.map((el: any) => renderDrgElement(el, drgElements, dataTypes))}
         </>
       )}
 
       {bkms.length > 0 && (
         <>
           <h3 style={styles.elementTypeTitle} id={`bkms-${createIdFromName(modelName)}`}>Business Knowledge Models (BKMs)</h3>
-          {bkms.map((el: any) => renderDrgElement(el, "BKM"))}
+          {bkms.map((el: any) => renderDrgElement(el, drgElements, dataTypes))}
         </>
       )}
 

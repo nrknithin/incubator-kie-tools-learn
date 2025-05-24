@@ -19,7 +19,7 @@
 
 import * as React from "react";
 // import { DmnLatestModel } from "@kie-tools/dmn-marshaller";
-import { DmnEditor } from "@kie-tools/dmn-editor"; // Using the full editor for now
+import { DmnEditorStandalone } from "@kie-tools/dmn-editor-standalone"; // Updated import
 
 export interface ModelsSectionProps {
   definition: any; // DmnLatestModel; Assuming single model for now
@@ -62,11 +62,13 @@ export const ModelsSection: React.FC<ModelsSectionProps> = ({ definition }) => {
       minHeight: "500px", // Ensure editor has space
       border: "1px solid #ddd",
       background: "#f9f9f9", // So it's visible if editor is empty
+      // Consider adding overflow: "auto" if content might exceed fixed height
     },
     placeholder: {
       padding: "20px",
       textAlign: "center",
       color: "#888",
+      fontStyle: "italic",
     }
   };
 
@@ -97,32 +99,36 @@ export const ModelsSection: React.FC<ModelsSectionProps> = ({ definition }) => {
           </h3>
           <div style={styles.drdEditorContainer}>
             {/*
-              The DmnEditor component expects the full model and other props.
-              It internally handles which DRD to show if multiple are present,
-              often based on the `navigation` state within its own context or props.
-              For a documentation generator, we might need a way to tell it
-              "render only DRD with id X" or "render DRD at index Y".
-              This might require a custom wrapper or a specific view mode in DmnEditor if available.
-              For now, passing the full definition and hoping it defaults to the first DRD or
-              we might need to explore DmnEditor's API more deeply for specific DRD rendering.
-              A simpler approach for pure read-only might be to extract SVG directly if possible,
-              but that loses interactivity if any is desired in preview.
+              Using DmnEditorStandalone.
+              NOTE: DmnEditorStandalone typically expects the DMN model as an XML string.
+              If 'definition' is a JSON object (from dmn-marshaller), it will likely need to be
+              marshalled back to XML string form before being passed to DmnEditorStandalone.
+              This marshalling step is not included here and would be a prerequisite.
+              Example:
+              import { DmnMarshaller } from "@kie-tools/dmn-marshaller";
+              const marshaller = new DmnMarshaller();
+              const xmlString = marshaller.marshall(definition);
+              // then pass xmlString to the model prop.
+
+              Also, how DmnEditorStandalone handles multiple DRDs within a single model needs confirmation.
+              It might display all of them, only the first, or require a specific prop to select one.
+              If it shows all DRDs, then looping and creating multiple instances might be redundant;
+              a single instance with the full model could suffice.
+              If it shows one, this loop is conceptually correct if a prop like 'initialDrdId' exists.
+              For now, we are instantiating it per DRD found in dmnDI, assuming it might focus on
+              the specific DRD context if such a feature exists or simply render the whole model,
+              which might lead to repeated full model renderings if not handled carefully.
             */}
-            <DmnEditor
-              model={definition}
-              originalVersion="0.0.0" // Placeholder, might not be relevant for read-only
-              externalModelsByNamespace={new Map()} // Assuming no external models for now
-              externalContextName={""}
-              externalContextDescription={""}
-              resources={new Map()}
-              evaluationResults={undefined}
-              validationMessages={[]}
+            <DmnEditorStandalone
+              model={definition} // Placeholder: This likely needs to be an XML string.
               isReadOnly={true}
-              // Props to control which DRD is active would be ideal here.
-              // E.g., initialActiveDrdId={diag["@_id"]} if such a prop existed.
+              // Speculative props (verify against DmnEditorStandalone's actual API):
+              // initialDrdId={diag["@_id"]}
+              // width={"100%"} // Might be controlled by container styles
+              // height={"500px"} // Might be controlled by container styles
             />
             <p style={styles.placeholder}>
-              <i>(Full DMN Editor integration for DRD: "{diag["@_name"] || `DRD ${index + 1}`}")</i>
+              <i>(Rendered DRD: "{diag["@_name"] || `DRD ${index + 1}`}" using DmnEditorStandalone. Note: Model prop likely requires XML.)</i>
             </p>
           </div>
         </div>

@@ -32,7 +32,7 @@
   "dependencies": {
     "@kie-tools-core/i18n": "workspace:*",
     "@kie-tools/boxed-expression-component": "workspace:*",
-    "@kie-tools/dmn-editor": "workspace:*",
+    "@kie-tools/dmn-editor-standalone": "workspace:*",
     "@kie-tools/dmn-marshaller": "workspace:*",
     "@kie-tools/i18n-common-dictionary": "workspace:*"
   },

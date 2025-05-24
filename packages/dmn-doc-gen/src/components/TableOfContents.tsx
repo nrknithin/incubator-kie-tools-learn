@@ -21,13 +21,10 @@ import * as React from "react";
 // import { DmnLatestModel, DmnDiDecisionService, DmnDiDmnElement } from "@kie-tools/dmn-marshaller"; // For typing
 
 export interface TableOfContentsProps {
-  definition: any; // Assuming DmnLatestModel or an array of them
-  // For now, let's assume 'definition' is a single DMN model object.
-  // Multi-model TOC would require iterating over an array of definitions.
+  definition: any; // DmnLatestModel
 }
 
-// Helper to create a slug for links (very basic)
-const createSlug = (text: string) => {
+const createSlug = (text: string = "") => { // Add default value for text
   return String(text).toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 };
 
@@ -62,75 +59,108 @@ export const TableOfContents: React.FC<TableOfContentsProps> = ({ definition }) 
   };
 
   const modelName = definition?.definitions?.["@_name"] || "Unnamed Model";
+  
+  // Ensure diagrams are correctly accessed, even if dmnDI or dmndi:DMNDiagram is missing
+  const diagrams = definition?.dmnDI?.["dmndi:DMNDiagram"] || [];
+  
   const drgElements = definition?.definitions?.drgElement || [];
-  const diagrams = definition?.["dmnDI"]?.["dmndi:DMNDiagram"] || [];
-  // Assuming itemDefinitions are directly under definitions for custom types
-  const dataTypes = definition?.definitions?.itemDefinition || [];
+  const itemDefinitions = definition?.definitions?.itemDefinition || [];
 
-
-  // Group DRG Elements by type
   const inputs = drgElements.filter((el: any) => el.__$$element === "inputData");
   const decisions = drgElements.filter((el: any) => el.__$$element === "decision");
   const bkms = drgElements.filter((el: any) => el.__$$element === "businessKnowledgeModel");
+  const customDataTypes = itemDefinitions.filter((itemDef: any) => 
+    !(itemDef.typeRef?.__$$text?.startsWith("feel:")) && 
+    !(typeof itemDef.typeRef === 'string' && itemDef.typeRef.startsWith("feel:"))
+  );
+
 
   return (
     <div style={styles.toc} data-testid="table-of-contents">
       <div style={styles.tocTitle}>Table of Contents</div>
       <ul style={styles.tocList}>
-        {/* Models Section */}
+        {/* Model Name and its DRDs */}
         <li style={styles.tocListItem}>
           <a href={`#model-${createSlug(modelName)}`} style={styles.tocLink}>
             Model: {modelName}
           </a>
-          <ul style={styles.tocSubList}>
-            {diagrams.map((diag: any, index: number) => (
-              <li key={diag["@_id"] || index} style={styles.tocListItem}>
-                <a href={`#drd-${createSlug(diag["@_name"] || `drd-${index}`)}`} style={styles.tocLink}>
-                  DRD: {diag["@_name"] || `DRD ${index + 1}`}
-                </a>
-              </li>
-            ))}
-          </ul>
+          {diagrams.length > 0 && (
+            <ul style={styles.tocSubList}>
+              {diagrams.map((diag: any, index: number) => (
+                <li key={diag["@_id"] || index} style={styles.tocListItem}>
+                  <a href={`#drd-${createSlug(diag["@_name"] || `drd-${index}`)}`} style={styles.tocLink}>
+                    DRD: {diag["@_name"] || `DRD ${index + 1}`}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
         </li>
 
-        {/* DRG Elements Section */}
+        {/* DRG Elements Section Link */}
         {(inputs.length > 0 || decisions.length > 0 || bkms.length > 0) && (
           <li style={styles.tocListItem}>
             <a href={`#drg-elements-${createSlug(modelName)}`} style={styles.tocLink}>
-              DRG Elements: {modelName}
+              DRG Elements ({modelName})
             </a>
             <ul style={styles.tocSubList}>
               {inputs.length > 0 && (
                 <li style={styles.tocListItem}>
                   <a href={`#inputs-${createSlug(modelName)}`} style={styles.tocLink}>Inputs</a>
-                  {/* Further sub-items per input could be added if needed */}
+                  <ul style={styles.tocSubList}>
+                    {inputs.map((el: any) => (
+                       <li key={el["@_id"]} style={styles.tocListItem}>
+                         <a href={`#drg-${createSlug(el["@_id"])}`} style={styles.tocLink}>{el["@_name"]}</a>
+                       </li>
+                    ))}
+                  </ul>
                 </li>
               )}
               {decisions.length > 0 && (
                 <li style={styles.tocListItem}>
                   <a href={`#decisions-${createSlug(modelName)}`} style={styles.tocLink}>Decisions</a>
+                   <ul style={styles.tocSubList}>
+                    {decisions.map((el: any) => (
+                       <li key={el["@_id"]} style={styles.tocListItem}>
+                         <a href={`#drg-${createSlug(el["@_id"])}`} style={styles.tocLink}>{el["@_name"]}</a>
+                       </li>
+                    ))}
+                  </ul>
                 </li>
               )}
               {bkms.length > 0 && (
                 <li style={styles.tocListItem}>
                   <a href={`#bkms-${createSlug(modelName)}`} style={styles.tocLink}>Business Knowledge Models</a>
+                   <ul style={styles.tocSubList}>
+                    {bkms.map((el: any) => (
+                       <li key={el["@_id"]} style={styles.tocListItem}>
+                         <a href={`#drg-${createSlug(el["@_id"])}`} style={styles.tocLink}>{el["@_name"]}</a>
+                       </li>
+                    ))}
+                  </ul>
                 </li>
               )}
             </ul>
           </li>
         )}
 
-        {/* DataTypes Section */}
-        {dataTypes.length > 0 && (
+        {/* DataTypes Section Link */}
+        {customDataTypes.length > 0 && (
            <li style={styles.tocListItem}>
             <a href={`#data-types-${createSlug(modelName)}`} style={styles.tocLink}>
-              DataTypes: {modelName}
+              DataTypes ({modelName})
             </a>
-            {/* Sub-list per data type could be added if needed */}
+            <ul style={styles.tocSubList}>
+              {customDataTypes.map((el: any) => (
+                 <li key={el["@_id"]} style={styles.tocListItem}>
+                   <a href={`#type-${createSlug(el["@_id"])}`} style={styles.tocLink}>{el["@_name"]}</a>
+                 </li>
+              ))}
+            </ul>
           </li>
         )}
       </ul>
-      <p><i>(Note: Links are placeholders for now.)</i></p>
+      <p><i>(Note: Links are placeholders for actual navigation.)</i></p>
     </div>
   );
 };
